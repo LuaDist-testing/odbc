@@ -1,8 +1,8 @@
 package = "odbc"
-version = "0.2.0-1"
+version = "0.2.1-1"
 source = {
-  url = "https://github.com/moteus/lua-odbc/archive/v0.2.0.zip",
-  dir = "lua-odbc-0.2.0",
+  url = "https://github.com/moteus/lua-odbc/archive/v0.2.1.zip",
+  dir = "lua-odbc-0.2.1",
 }
 
 description = {

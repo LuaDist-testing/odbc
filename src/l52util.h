@@ -10,13 +10,19 @@
 // lua_rawsetp
 // luaL_setfuncs
 // lua_absindex
-
+#ifndef lua_objlen
 
 #define lua_objlen      lua_rawlen
 
+#endif
+
 int   luaL_typerror (lua_State *L, int narg, const char *tname);
 
+#ifndef luaL_register
+
 void luaL_register (lua_State *L, const char *libname, const luaL_Reg *l);
+
+#endif
 
 #else                      // lua 5.1
 
@@ -28,6 +34,9 @@ void luaL_register (lua_State *L, const char *libname, const luaL_Reg *l);
 void  lua_rawgetp   (lua_State *L, int index, const void *p);
 void  lua_rawsetp   (lua_State *L, int index, const void *p);
 void  luaL_setfuncs  (lua_State *L, const luaL_Reg *l, int nup);
+
+int luaL_getmetafield (lua_State *L, int obj, const char *event);
+int luaL_callmeta (lua_State *L, int obj, const char *event);
 
 #endif
 
