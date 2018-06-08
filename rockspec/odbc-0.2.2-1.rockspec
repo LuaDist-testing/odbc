@@ -1,17 +1,9 @@
--- This file was automatically generated for the LuaDist project.
-
 package = "odbc"
-version = "0.2.1-1"
--- LuaDist source
+version = "0.2.2-1"
 source = {
-  tag = "0.2.1-1",
-  url = "git://github.com/LuaDist-testing/odbc.git"
+  url = "https://github.com/moteus/lua-odbc/archive/v0.2.2.zip",
+  dir = "lua-odbc-0.2.2",
 }
--- Original source
--- source = {
---   url = "https://github.com/moteus/lua-odbc/archive/v0.2.1.zip",
---   dir = "lua-odbc-0.2.1",
--- }
 
 description = {
   summary = "ODBC library for Lua",
