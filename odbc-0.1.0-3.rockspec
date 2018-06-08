@@ -1,10 +1,10 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "odbc"
-version = "0.1.0-1"
+version = "0.1.0-3"
 -- LuaDist source
 source = {
-  tag = "0.1.0-1",
+  tag = "0.1.0-3",
   url = "git://github.com/LuaDist-testing/odbc.git"
 }
 -- Original source
@@ -25,6 +25,8 @@ dependencies = {
   "lua >= 5.1",
 }
 
+local win_dep = { ODBC = {} };
+
 external_dependencies = {
   platforms = { 
     unix = {
@@ -33,22 +35,24 @@ external_dependencies = {
         -- library = 'odbc', -- does not work !?
       }
     };
-    windows = {
-      ODBC = {}
-    };
+    mingw32 = win_dep;
+    windows = win_dep;
   }
 }
+
+local win_plat = { modules = {
+  [ "odbc.core" ] = {
+    libraries = {'odbc32', 'odbccp32'};
+  }
+}}
 
 build = {
   type = "builtin",
   copy_directories = {"test"},
 
   platforms = {
-    windows = { modules = {
-      [ "odbc.core"    ] = {
-        libraries = {'odbc32', 'odbccp32'};
-      }
-    }},
+    mingw32 = win_plat,
+    windows = win_plat,
     unix = { modules = {
       [ "odbc.core"    ] = {
         libraries = {'odbc'};
@@ -77,6 +81,7 @@ build = {
         -- 'LODBC_USE_NULL_AS_NIL';
       };
       incdirs = {"./include","$(ODBC_INCDIR)"},
+      libdirs = {"$(ODBC_LIBDIR)"},
     };
     [ "odbc"           ] = "lua/odbc.lua";
     [ "odbc.luasql"    ] = "lua/odbc/luasql.lua";
