@@ -25,9 +25,7 @@ external_dependencies = {
         -- library = 'odbc', -- does not work !?
       }
     };
-    windows = {
-      ODBC = {}
-    };
+    windows = { ODBC = {} };
   }
 }
 
@@ -41,7 +39,7 @@ build = {
         libraries = {'odbc32', 'odbccp32'};
       }
     }},
-    unix = { modules = {
+    unix    = { modules = {
       [ "odbc.core"    ] = {
         libraries = {'odbc'};
       }
@@ -49,7 +47,7 @@ build = {
   },
 
   modules = {
-    [ "odbc.core"    ] = {
+    [ "odbc.core"      ] = {
       sources = {
         'src/l52util.c', 'src/lcnn.c',
         'src/lenv.c',    'src/lerr.c',

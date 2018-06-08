@@ -1,9 +1,17 @@
+-- This file was automatically generated for the LuaDist project.
+
 package = "odbc"
-version = "0.1.0-1"
+version = "0.2.0-1"
+-- LuaDist source
 source = {
-  url = "https://github.com/moteus/lua-odbc/archive/v0.1.0.zip",
-  dir = "lua-odbc-0.1.0",
+  tag = "0.2.0-1",
+  url = "git://github.com/LuaDist-testing/odbc.git"
 }
+-- Original source
+-- source = {
+--   url = "https://github.com/moteus/lua-odbc/archive/v0.2.0.zip",
+--   dir = "lua-odbc-0.2.0",
+-- }
 
 description = {
   summary = "ODBC library for Lua",
@@ -14,7 +22,7 @@ description = {
 }
 
 dependencies = {
-  "lua >= 5.1",
+  "lua >= 5.1, < 5.3",
 }
 
 external_dependencies = {
@@ -25,9 +33,7 @@ external_dependencies = {
         -- library = 'odbc', -- does not work !?
       }
     };
-    windows = {
-      ODBC = {}
-    };
+    windows = { ODBC = {} };
   }
 }
 
@@ -41,7 +47,7 @@ build = {
         libraries = {'odbc32', 'odbccp32'};
       }
     }},
-    unix = { modules = {
+    unix    = { modules = {
       [ "odbc.core"    ] = {
         libraries = {'odbc'};
       }
@@ -49,7 +55,7 @@ build = {
   },
 
   modules = {
-    [ "odbc.core"    ] = {
+    [ "odbc.core"      ] = {
       sources = {
         'src/l52util.c', 'src/lcnn.c',
         'src/lenv.c',    'src/lerr.c',
@@ -69,6 +75,7 @@ build = {
         -- 'LODBC_USE_NULL_AS_NIL';
       };
       incdirs = {"./include","$(ODBC_INCDIR)"},
+      libdirs = {"$(ODBC_LIBDIR)"},
     };
     [ "odbc"           ] = "lua/odbc.lua";
     [ "odbc.luasql"    ] = "lua/odbc/luasql.lua";

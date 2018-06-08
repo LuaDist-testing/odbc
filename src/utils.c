@@ -2,6 +2,7 @@
 #include "lualib.h"
 #include "lerr.h"
 #include "l52util.h"
+#include "luaodbc.h"
 
 const char 
   *LT_STRING  = "string",
@@ -470,10 +471,28 @@ int lodbc_test_state(const SQLSMALLINT type, const SQLHANDLE handle, const char*
     SQLRETURN ret = SQLGetDiagRec(type, handle, i, State, NULL, NULL, 0, NULL);
     if (ret == LODBC_ODBC3_C(SQL_NO_DATA,SQL_NO_DATA_FOUND)) return -1;
     for(j = 0;j<n;++j){
-      if (0 == strcmp(states[j], State)){
+      if (0 == strcmp(states[j], (char*)State)){
         return j;
       }
     }
     i++;
   }
+}
+
+int lodbc_make_weak_table(lua_State*L, const char *mode){
+  int top = lua_gettop(L);
+  lua_newtable(L);
+  lua_newtable(L);
+  lua_pushstring(L, mode);
+  lua_setfield(L, -2, "__mode");
+  lua_setmetatable(L,-2);
+  assert((top+1) == lua_gettop(L));
+  return 1;
+}
+
+int lodbc_pcall_method(lua_State *L, const char *name, int nargs, int nresults, int errfunc){
+  int obj_index = -nargs - 1;
+  lua_getfield(L, obj_index, name);
+  lua_insert(L, obj_index - 1);
+  return lua_pcall(L, nargs + 1, nresults, errfunc);
 }

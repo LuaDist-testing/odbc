@@ -4,9 +4,10 @@
 #include "lenv.h"
 #include "lcnn.h"
 #include "lerr.h"
+#include "libopt.h"
 #include "luaodbc.h"
 
-LODBC_EXPORT const char *LODBC_ENV = LODBC_PREFIX "Environment";
+const char *LODBC_ENV = LODBC_PREFIX "Environment";
 
 static int env_get_uint_attr_(lua_State*L, lodbc_env *env, SQLINTEGER optnum);
 
@@ -24,6 +25,23 @@ lodbc_env *lodbc_getenv_at (lua_State *L, int i) {
   return env;
 }
 
+//{ ctor/dtor
+
+static int create_cnn_list(lua_State *L){
+  lodbc_make_weak_table(L, "k");
+  return luaL_ref(L, LODBC_LUA_REGISTRY);
+}
+
+static void call_cnn_destroy(lua_State *L){
+  int top = lua_gettop(L);
+  assert(lutil_checkudatap(L, -1, LODBC_CNN));
+
+  lua_pushvalue(L, -1);
+  lodbc_pcall_method(L, "destroy", 0, 0, 0);
+
+  lua_settop(L, top); // ignore any error
+}
+
 int lodbc_environment_create(lua_State *L, SQLHENV henv, uchar own){
   lodbc_env *env;
   uchar is_new = 0;
@@ -39,6 +57,15 @@ int lodbc_environment_create(lua_State *L, SQLHENV henv, uchar own){
   memset(env, 0, sizeof(lodbc_env));
   if(!own)env->flags |= LODBC_FLAG_DONT_DESTROY;
   env->handle = henv;
+
+  env->conn_list_ref = LUA_NOREF;
+  if(LODBC_OPT_INT(ENV_AUTOCLOSECNN)){
+    int top = lua_gettop(L);
+    lua_pushvalue(L, -1);
+    lua_pushboolean(L, 1);
+    lodbc_pcall_method(L, "setautoclosecnn", 1, 0, 0);
+    lua_settop(L, top);
+  }
 
   if(is_new){
     int top = lua_gettop(L);
@@ -59,7 +86,16 @@ static int env_destroy (lua_State *L) {
   luaL_argcheck (L, env != NULL, 1, LODBC_PREFIX "environment expected");
 
   if(!(env->flags & LODBC_FLAG_DESTROYED)){
-    //! @todo autoclose connections
+
+    if(LUA_NOREF != env->conn_list_ref){
+      lua_rawgeti(L, LODBC_LUA_REGISTRY, env->conn_list_ref);
+      assert(lua_istable(L, -1));
+      lua_pushnil(L);
+      while(lua_next(L, -2)){
+        lua_pop(L, 1); // we do not need value
+        call_cnn_destroy(L);
+      }
+    }
 
     if (env->conn_counter > 0)
       return luaL_error (L, LODBC_PREFIX"there are open connections");
@@ -76,6 +112,10 @@ static int env_destroy (lua_State *L) {
 
       env->handle = SQL_NULL_HANDLE;
     }
+
+    luaL_unref(L, LODBC_LUA_REGISTRY, env->conn_list_ref);
+    env->conn_list_ref = LUA_NOREF;
+
     env->flags |= LODBC_FLAG_DESTROYED;
   }
 
@@ -90,6 +130,8 @@ static int env_closed (lua_State *L) {
   lua_pushboolean(L, env->flags & LODBC_FLAG_DESTROYED);
   return 1;
 }
+
+//}
 
 //{ DSN and drivers info
 
@@ -284,6 +326,34 @@ static int env_setv3(lua_State *L){
 
 //}
 
+//{
+
+static int env_setautoclosecnn(lua_State *L){
+  lodbc_env *env = lodbc_getenv(L);
+  int val = lua_toboolean(L, 2);
+
+  if(val && (env->conn_list_ref == LUA_NOREF)){
+    env->conn_list_ref = create_cnn_list(L);
+    return lodbc_pass(L);
+  }
+
+  if((!val) && (env->conn_list_ref != LUA_NOREF)){
+    luaL_unref(L, LODBC_LUA_REGISTRY, env->conn_list_ref);
+    env->conn_list_ref = LUA_NOREF;
+    return lodbc_pass(L);
+  }
+
+  return lodbc_pass(L);
+}
+
+static int env_getautoclosecnn(lua_State *L){
+  lodbc_env *env = lodbc_getenv(L);
+  lua_pushboolean(L, (env->conn_list_ref == LUA_NOREF)?0:1);
+  return 1;
+}
+
+//}
+
 static int env_connection(lua_State *L){
   lodbc_env *env = lodbc_getenv(L);
   SQLHDBC hdbc;
@@ -305,6 +375,12 @@ static int env_setuservalue(lua_State *L){
   return 1;
 }
 
+static int env_connection_count(lua_State *L){
+  lodbc_env *env = lodbc_getenv(L);
+  lua_pushnumber(L, env->conn_counter);
+  return 1;
+}
+
 static const struct luaL_Reg lodbc_env_methods[] = {
   {"__gc",       env_destroy},
   {"destroy",    env_destroy},
@@ -322,6 +398,11 @@ static const struct luaL_Reg lodbc_env_methods[] = {
   {"getstrattr",  env_get_str_attr},
   {"setuintattr", env_set_uint_attr},
   {"setstrattr",  env_set_str_attr},
+
+  {"setautoclosecnn",  env_setautoclosecnn},
+  {"getautoclosecnn",  env_getautoclosecnn},
+
+  {"connection_count", env_connection_count},
 
   {NULL, NULL},
 };

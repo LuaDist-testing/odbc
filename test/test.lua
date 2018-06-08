@@ -1,9 +1,12 @@
+require "tools"
 print("------------------------------------")
-print("Lua version: " .. (_G.jit and _G.jit.version or _G._VERSION))
+print("     Lua version: " .. (_G.jit and _G.jit.version or _G._VERSION))
+print("Lua-ODBC version: " .. odbc._VERSION)
 print("------------------------------------")
 print("") 
 local HAS_RUNNER = not not lunit
 lunit = require "lunit"
+require "00_test_odbc"
 require "01_test_odbc_env"
 require "02_test_odbc_cnn"
 require "03_test_odbc_cnn_info"

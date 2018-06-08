@@ -1,8 +1,8 @@
 package = "odbc"
-version = "0.1.0-1"
+version = "0.2.0-1"
 source = {
-  url = "https://github.com/moteus/lua-odbc/archive/v0.1.0.zip",
-  dir = "lua-odbc-0.1.0",
+  url = "https://github.com/moteus/lua-odbc/archive/v0.2.0.zip",
+  dir = "lua-odbc-0.2.0",
 }
 
 description = {
@@ -25,9 +25,7 @@ external_dependencies = {
         -- library = 'odbc', -- does not work !?
       }
     };
-    windows = {
-      ODBC = {}
-    };
+    windows = { ODBC = {} };
   }
 }
 
@@ -41,7 +39,7 @@ build = {
         libraries = {'odbc32', 'odbccp32'};
       }
     }},
-    unix = { modules = {
+    unix    = { modules = {
       [ "odbc.core"    ] = {
         libraries = {'odbc'};
       }
@@ -49,7 +47,7 @@ build = {
   },
 
   modules = {
-    [ "odbc.core"    ] = {
+    [ "odbc.core"      ] = {
       sources = {
         'src/l52util.c', 'src/lcnn.c',
         'src/lenv.c',    'src/lerr.c',
@@ -69,6 +67,7 @@ build = {
         -- 'LODBC_USE_NULL_AS_NIL';
       };
       incdirs = {"./include","$(ODBC_INCDIR)"},
+      libdirs = {"$(ODBC_LIBDIR)"},
     };
     [ "odbc"           ] = "lua/odbc.lua";
     [ "odbc.luasql"    ] = "lua/odbc/luasql.lua";
