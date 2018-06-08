@@ -36,6 +36,39 @@
 
 #define LODBC_ODBCVER ODBCVER
 
+#if LUA_VERSION_NUM >= 503 /* Lua 5.3 */
+
+/*! @fixme detect real types (e.g. float/int32_t) */
+
+#  ifndef LODBC_C_NUMBER
+#    define LODBC_C_NUMBER       SQL_C_DOUBLE
+#    define LODBC_NUMBER         SQL_DOUBLE
+#    define LODBC_NUMBER_SIZE    0
+#    define LODBC_NUMBER_DIGEST  0
+#  endif
+
+#  ifndef LODBC_C_INTEGER
+#    define LODBC_C_INTEGER      SQL_C_SBIGINT
+#    define LODBC_INTEGER        SQL_BIGINT
+#    define LODBC_INTEGER_SIZE   0
+#    define LODBC_INTEGER_DIGEST 0
+#  endif
+
+#  define LODBC_USE_INTEGER
+
+#endif
+
+#ifdef LODBC_USE_INTEGER
+#  ifdef LUA_32BITS
+#    define LODBC_INT_SIZE_16
+#    define LODBC_INT_SIZE_32
+#  else
+#    define LODBC_INT_SIZE_16
+#    define LODBC_INT_SIZE_32
+#    define LODBC_INT_SIZE_64
+#  endif
+#endif
+
 #ifndef LODBC_C_NUMBER
 #  if defined LUA_NUMBER_DOUBLE
 #    define LODBC_C_NUMBER SQL_C_DOUBLE

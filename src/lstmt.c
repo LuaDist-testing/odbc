@@ -326,22 +326,59 @@ static int stmt_prepare_ (lua_State *L, lodbc_stmt *stmt, const char *statement)
 
 //{ bind CallBack
 
-static int stmt_bind_number_cb_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+static int stmt_bind_number_cb_pre_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
   SQLRETURN ret = par_init_cb(par, L, LODBC_NUMBER);
-  if(ret)
-    return ret;
-  par_data_settype(par,LODBC_NUMBER,LODBC_NUMBER_SIZE, LODBC_NUMBER_DIGEST, 0);
-  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, LODBC_C_NUMBER, par->sqltype, par->parsize, par->digest, (VOID *)par, 0, &par->ind);
+  if(ret) return ret;
+
+  par_data_settype(par, LODBC_NUMBER, LODBC_NUMBER_SIZE, LODBC_NUMBER_DIGEST, 0);
+  return 0;
+}
+
+#ifdef LODBC_USE_INTEGER
+
+static int stmt_bind_integer_cb_pre_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  SQLRETURN ret = par_init_cb(par, L, LODBC_INTEGER);
+  if(ret) return ret;
+
+  par_data_settype(par, LODBC_INTEGER, LODBC_INTEGER_SIZE, LODBC_INTEGER_DIGEST, 0);
+  return 0;
+}
+
+#else
+#  define stmt_bind_integer_cb_pre_ stmt_bind_number_cb_pre_
+#endif
+
+static int stmt_bind_number_cb_post_(lua_State *L, SQLSMALLINT ct, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  SQLRETURN ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, ct, par->sqltype, par->parsize, par->digest, (SQLPOINTER)par, 0, &par->ind);
   if (lodbc_iserror(ret))
     return lodbc_fail(L, hSTMT, stmt->handle);
   return lodbc_pass(L);
 }
 
+static int stmt_bind_number_cb_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  SQLRETURN ret = stmt_bind_number_cb_pre_(L, stmt, i, par);
+  if(ret)return ret;
+  return stmt_bind_number_cb_post_(L, LODBC_C_NUMBER, stmt, i, par);
+}
+
+#ifdef LODBC_USE_INTEGER
+
+static int stmt_bind_integer_cb_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  SQLRETURN ret = stmt_bind_integer_cb_pre_(L, stmt, i, par);
+  if(ret)return ret;
+  return stmt_bind_number_cb_post_(L, LODBC_C_INTEGER, stmt, i, par);
+}
+
+#else
+#  define stmt_bind_integer_cb_ stmt_bind_number_cb_
+#endif
+
+
 static int stmt_bind_bool_cb_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
   SQLRETURN ret = par_init_cb(par, L, SQL_BIT);
   if(ret)
     return ret;
-  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, SQL_C_BIT, par->sqltype, 0, 0, (VOID *)par, 0, &par->ind);
+  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, SQL_C_BIT, par->sqltype, 0, 0, (SQLPOINTER)par, 0, &par->ind);
   if (lodbc_iserror(ret))
     return lodbc_fail(L, hSTMT, stmt->handle);
   return lodbc_pass(L);
@@ -351,7 +388,7 @@ static int stmt_bind_string_cb_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, 
   SQLRETURN ret = par_init_cb(par, L, SQL_CHAR);
   if(ret)
     return ret;
-  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, SQL_C_CHAR, par->sqltype, 0, 0, (VOID *)par, 0, &par->ind);
+  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, SQL_C_CHAR, par->sqltype, 0, 0, (SQLPOINTER)par, 0, &par->ind);
   if (lodbc_iserror(ret))
     return lodbc_fail(L, hSTMT, stmt->handle);
   return lodbc_pass(L);
@@ -361,7 +398,7 @@ static int stmt_bind_binary_cb_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, 
   SQLRETURN ret = par_init_cb(par, L, SQL_BINARY);
   if(ret)
     return ret;
-  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, SQL_C_BINARY, par->sqltype, 0, 0, (VOID *)par, 0, &par->ind);
+  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, SQL_C_BINARY, par->sqltype, 0, 0, (SQLPOINTER)par, 0, &par->ind);
   if (lodbc_iserror(ret))
     return lodbc_fail(L, hSTMT, stmt->handle);
   return lodbc_pass(L);
@@ -371,17 +408,49 @@ static int stmt_bind_binary_cb_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, 
 
 //{ bind Data
 
-static int stmt_bind_number_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+static int stmt_bind_number_post_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
   SQLRETURN ret;
-  if(lua_isfunction(L,3))
-    return stmt_bind_number_cb_(L,stmt,i,par);
 
-  par_data_settype(par,LODBC_NUMBER,LODBC_NUMBER_SIZE, LODBC_NUMBER_DIGEST, 0);
-  ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, LODBC_C_NUMBER, par->sqltype, par->parsize, par->digest, &par->value.numval, 0, NULL);
+  #ifdef LODBC_USE_INTEGER
+  if(lua_isinteger(L, 3)){
+    par_data_settype(par, LODBC_INTEGER, LODBC_INTEGER_SIZE, LODBC_INTEGER_DIGEST, 0);
+    par->value.intval = lua_tointeger(L,3);
+    ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, LODBC_C_INTEGER, par->sqltype, par->parsize, par->digest, &par->value.intval, 0, NULL);
+  }
+  else
+  #endif
+  {
+    par_data_settype(par,LODBC_NUMBER,LODBC_NUMBER_SIZE, LODBC_NUMBER_DIGEST, 0);
+    par->value.numval = luaL_checknumber(L,3);
+    ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, LODBC_C_NUMBER, par->sqltype, par->parsize, par->digest, &par->value.numval, 0, NULL);
+  }
+
   if (lodbc_iserror(ret))
     return lodbc_fail(L, hSTMT, stmt->handle);
-  par->value.numval = luaL_checknumber(L,3);
+  
   return lodbc_pass(L);
+}
+
+static int stmt_bind_number_impl_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  if(lua_isfunction(L,3))
+    return stmt_bind_number_cb_(L,stmt, i, par);
+
+  return stmt_bind_number_post_(L, stmt, i, par);
+}
+
+static int stmt_bind_integer_impl_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  if(lua_isfunction(L,3))
+    return stmt_bind_integer_cb_(L, stmt, i, par);
+
+  return stmt_bind_number_post_(L, stmt, i, par);
+}
+
+static int stmt_bind_number_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  return stmt_bind_number_impl_(L, stmt, i, par);
+}
+
+static int stmt_bind_integer_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
+  return stmt_bind_integer_impl_(L, stmt, i, par);
 }
 
 static int stmt_bind_string_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_data *par){
@@ -431,7 +500,7 @@ static int stmt_bind_bool_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_d
   ret = SQLBindParameter(stmt->handle, i, SQL_PARAM_INPUT, SQL_C_BIT, par->sqltype, 0, 0, &par->value.boolval, 0, NULL);
   if (lodbc_iserror(ret))
     return lodbc_fail(L, hSTMT, stmt->handle);
-  par->value.boolval = lua_isboolean(L,3) ? lua_toboolean(L,3) : luaL_checkint(L,3);
+  par->value.boolval = lua_isboolean(L,3) ? lua_toboolean(L,3) : luaL_checkinteger(L,3);
   return lodbc_pass(L);
 }
 
@@ -442,7 +511,7 @@ static int stmt_bind_bool_(lua_State *L, lodbc_stmt *stmt, SQLUSMALLINT i, par_d
 #define CHECK_BIND_PARAM() \
   lodbc_stmt *stmt = lodbc_getstmt(L);\
   par_data     *par = NULL;\
-  SQLUSMALLINT    i = luaL_checkint(L,2);\
+  SQLUSMALLINT    i = luaL_checkinteger(L,2);\
   if(i <= 0) return lodbc_faildirect(L, "invalid param index");\
   if((stmt->numpars>0) && (!stmt->par)){\
     int ret = create_parinfo(L, stmt);\
@@ -496,8 +565,8 @@ static int stmt_bind(lua_State *L){
 
     /* deal with data according to type */
     switch (type[1]) {
-      /* nUmber */
-      case 'u': return stmt_bind_number_(L,stmt,i,par);
+      /* nUmber iNteger*/
+      case 'u': case 'n': return stmt_bind_number_(L,stmt,i,par);
       /* bOol */
       case 'o': return stmt_bind_bool_(L,stmt,i,par);
       /* sTring */ 
@@ -512,6 +581,11 @@ static int stmt_bind(lua_State *L){
 static int stmt_bind_number(lua_State *L){
   CHECK_BIND_PARAM();
   return stmt_bind_number_(L,stmt,i,par);
+}
+
+static int stmt_bind_integer(lua_State *L){
+  CHECK_BIND_PARAM();
+  return stmt_bind_integer_(L,stmt,i,par);
 }
 
 static int stmt_bind_bool(lua_State *L){
@@ -579,9 +653,19 @@ static int stmt_putparam_number_(lua_State *L, lodbc_stmt *stmt, par_data *par){
   int top = lua_gettop(L);
   if((ret = par_call_cb(par,L,0)))
     return ret;
-  par->value.numval = luaL_checknumber(L,-1);
+  #ifdef LODBC_USE_INTEGER
+  if(LT_INTEGER == lodbc_sqltypetolua(par->sqltype)){
+    par->value.intval = luaL_checkinteger(L,-1);
+    ret = SQLPutData(stmt->handle, &par->value.intval, sizeof(par->value.intval));
+  }
+  else
+  #endif
+  {
+    par->value.numval = luaL_checknumber(L,-1);
+    ret = SQLPutData(stmt->handle, &par->value.numval, sizeof(par->value.numval));
+  }
+
   lua_settop(L,top);
-  ret = SQLPutData(stmt->handle, &par->value.numval, sizeof(par->value.numval));
   if(lodbc_iserror(ret))
     return lodbc_fail(L, hSTMT, stmt->handle);
   return 0;
@@ -592,7 +676,7 @@ static int stmt_putparam_bool_(lua_State *L, lodbc_stmt *stmt, par_data *par){
   int top = lua_gettop(L);
   if((ret = par_call_cb(par,L,0)))
     return ret;
-  par->value.boolval = lua_isboolean(L,-1) ? lua_toboolean(L,-1) : luaL_checkint(L,-1);
+  par->value.boolval = lua_isboolean(L,-1) ? lua_toboolean(L,-1) : luaL_checkinteger(L,-1);
   lua_settop(L,top);
   ret = SQLPutData(stmt->handle, &par->value.boolval, sizeof(par->value.boolval));
   if(lodbc_iserror(ret))
@@ -604,8 +688,8 @@ static int stmt_putparam(lua_State *L, lodbc_stmt *stmt, par_data *par){
   const char *type = lodbc_sqltypetolua(par->sqltype);
   /* deal with data according to type */
   switch (type[1]) {
-    /* nUmber */
-    case 'u': return stmt_putparam_number_(L,stmt,par);
+    /* nUmber, iNteger */
+    case 'u': case 'n': return stmt_putparam_number_(L,stmt,par);
     /* bOol */
     case 'o': return stmt_putparam_bool_(L,stmt,par);
     /* sTring */ 
@@ -1295,7 +1379,29 @@ static int stmt_get_asyncmode(lua_State *L){
 
 //}
 
+static int stmt_tostring (lua_State *L) {
+  char status[16];
+  char self[65];
+
+  lodbc_stmt * stmt= (lodbc_stmt *)lutil_checkudatap (L, 1, LODBC_STMT);
+  luaL_argcheck (L, stmt != NULL, 1, LODBC_PREFIX "statement expected");
+
+  if(stmt->flags & LODBC_FLAG_DESTROYED){
+    strcpy (status, "[closed] ");
+  }
+  else{
+    status[0] = '\0';
+  }
+
+  sprintf (self, "%p", (void *)stmt);
+
+  lua_pushfstring (L, "%s %s(%s)", LODBC_STMT, status, self);
+  return 1;
+}
+
 static const struct luaL_Reg lodbc_stmt_methods[] = {
+  {"__tostring", stmt_tostring},
+
   {"__gc",      stmt_destroy},
   {"destroy",   stmt_destroy},
   {"destroyed", stmt_destroyed},
@@ -1318,6 +1424,7 @@ static const struct luaL_Reg lodbc_stmt_methods[] = {
 
   {"bind",        stmt_bind},
   {"bindnum",     stmt_bind_number},
+  {"bindint",     stmt_bind_integer},
   {"bindstr",     stmt_bind_string},
   {"bindbin",     stmt_bind_binary},
   {"bindbool",    stmt_bind_bool},

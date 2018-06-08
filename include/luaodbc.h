@@ -22,8 +22,8 @@ extern "C" {
 #endif
 
 #define LODBC_VERSION_MAJOR 0
-#define LODBC_VERSION_MINOR 2
-#define LODBC_VERSION_PATCH 2
+#define LODBC_VERSION_MINOR 3
+#define LODBC_VERSION_PATCH 0
 // #define LODBC_VERSION_COMMENT "dev"
 
 LODBC_EXPORT const char *LODBC_ENV;
