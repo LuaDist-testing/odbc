@@ -1,0 +1,66 @@
+PROJECT = 'odbc'
+
+LUA_RUNNER = LUA_EXE
+
+if LUA_VER == '5.2' then
+  LUA_NEED = 'lua52'
+  LUA_DIR  = ENV.LUA_DIR_5_2 or ENV.LUA_DIR
+  LUA_RUNNER  = 'lua52'
+else
+  LUA_NEED = 'lua51'
+  LUA_DIR  = ENV.LUA_DIR
+end
+
+DYNAMIC  = DYNAMIC or false
+
+INSTALL_DIR = INSTALL_DIR or J(LUA_DIR,'libs',PROJECT)
+
+DEFINES = L{
+  'LUAODBC_EXPORTS';
+  'LODBC_ERROR_AS_OBJECT';
+  'LODBC_MIN_PAR_BUFSIZE=64';
+  IF(DEBUG, 'LODBC_CHECK_ERROR_ON_DESTROY');
+  -- 'LODBC_FREE_PAR_AT_CLEAR';
+  -- 'LODBC_USE_LUA_REGISTRY';
+  -- 'LODBC_USE_UDPTR_AS_KEY';
+  -- 'LODBC_USE_NULL_AS_NIL';
+}
+
+lodbc = c.shared{'core', 
+  base     = 'src',
+  src      = '*.c',
+  exclude  = 'driverinfo';
+  needs    = {LUA_NEED, 'odbc'},
+  defines  = DEFINES,
+  dynamic  = DYNAMIC,
+  strip    = true,
+  incdir   = {J('..', 'include')}
+}
+
+target('build', lodbc)
+
+install = target('install', {
+  file.group{odir=J(INSTALL_DIR, 'share', PROJECT); src = lodbc                   };
+  file.group{odir=J(INSTALL_DIR, 'share'); recurse = true; src = J('lua', '*.*')  };
+  file.group{odir=J(INSTALL_DIR, 'test'); recurse = true; src = J('test', '*.*')  };
+})
+
+function run(file, cwd)
+  print()
+  print("run " .. file)
+  if not TESTING then 
+    if cwd then lake.chdir(cwd) end
+    os.execute( LUA_RUNNER .. ' ' .. file )
+    if cwd then lake.chdir("<") end
+    print()
+  end
+end
+
+target('test', install, function()
+  local test_dir = J(INSTALL_DIR,'test')
+  run(J(test_dir,'luasql','test-luasql.lua'), test_dir)
+  run(J(test_dir,'dba','test.lua'), test_dir)
+  run(J(test_dir,'test.lua'), test_dir)
+end)
+
+default('build')
